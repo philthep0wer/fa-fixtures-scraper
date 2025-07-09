@@ -1,0 +1,12 @@
+{
+  "name": "fa-fixtures-scraper",
+  "version": "1.0.0",
+  "description": "Scrapes FA Full-Time fixtures using Puppeteer.",
+  "main": "start.js",
+  "scripts": {
+    "start": "node start.js"
+  },
+  "dependencies": {
+    "puppeteer": "^21.3.8"
+  }
+}
