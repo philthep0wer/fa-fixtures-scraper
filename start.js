@@ -4,7 +4,10 @@ const path = require("path");
 const config = require("./config.json");
 
 async function scrapeFixtures(label, url) {
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+  headless: true,
+  executablePath: '/usr/bin/chromium' // Use the system-installed Chromium
+});
   const page = await browser.newPage();
 
   try {
