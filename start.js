@@ -44,4 +44,10 @@ async function runAll() {
   }
 }
 
-runAll();
+runAll().then(() => {
+  console.log("✅ All scraping complete.");
+  process.exit(0);
+}).catch((err) => {
+  console.error("❌ Error during scraping:", err);
+  process.exit(1);
+});
