@@ -1,8 +1,8 @@
 {
   "fixtures": [
     {
-      "label": "bristol_girls_league_(BGL)",
-      "url": "https://fulltime.thefa.com/fixtures/1/100.html?selectedSeason=283421002&selectedFixtureGroupAgeGroup=0&previousSelectedFixtureGroupAgeGroup=&selectedFixtureGroupKey=&previousSelectedFixtureGroupKey=&selectedDateCode=all&selectedRelatedFixtureOption=3&selectedClub=757034714&previousSelectedClub=757034714&selectedTeam=&selectedFixtureDateStatus=&selectedFixtureStatus="
+      "label": "Western League",
+      "url": "https://fulltime.thefa.com/fixtures/1/100.html?selectedSeason=645752852&selectedFixtureGroupAgeGroup=0&previousSelectedFixtureGroupAgeGroup=&selectedFixtureGroupKey=&previousSelectedFixtureGroupKey=&selectedDateCode=all&selectedRelatedFixtureOption=3&selectedClub=&previousSelectedClub=&selectedTeam=833747558&selectedFixtureDateStatus=&selectedFixtureStatus="
     }
   ]
 }
