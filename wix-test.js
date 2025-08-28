@@ -10,8 +10,7 @@ const WIX_URL = 'https://philbrisjrs.wixsite.com/my-site-29128/ft-snippets';
 
 // ✅ Sheets writer function (inline, not external)
 async function writeToGoogleSheet(values) {
-  const keyPath = path.resolve(__dirname, 'service-account.json');
-  const keys = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
+const keys = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
 
   const auth = new google.auth.GoogleAuth({
     credentials: keys,
