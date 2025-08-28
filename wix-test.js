@@ -3,14 +3,14 @@ const { google } = require('googleapis');
 const fs = require('fs');
 const path = require('path');
 
+const WIX_URL = 'https://philbrisjrs.wixsite.com/my-site-29128/ft-snippets';
 const SPREADSHEET_ID = '1OclBZZ8eNTFI-RWXU8zDTcEFymTHPkcxraLx-lmOnRQ';
 const SHEET_NAME = 'Fixtures';
-const SELECTOR = '#lrep755262731 table';
-const WIX_URL = 'https://philbrisjrs.wixsite.com/my-site-29128/ft-snippets';
 
-// ✅ Sheets writer function (inline, not external)
+// ✅ Inline Google Sheets writer
 async function writeToGoogleSheet(values) {
-const keys = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  const keyPath = path.resolve(__dirname, 'service-account.json');
+  const keys = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
 
   const auth = new google.auth.GoogleAuth({
     credentials: keys,
@@ -20,13 +20,13 @@ const keys = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
   const client = await auth.getClient();
   const sheets = google.sheets({ version: 'v4', auth: client });
 
-  // Optional: Clear the sheet before writing
+  // Clear the existing content
   await sheets.spreadsheets.values.clear({
     spreadsheetId: SPREADSHEET_ID,
     range: SHEET_NAME,
   });
 
-  // Write the new data
+  // Write new data
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
     range: SHEET_NAME,
@@ -36,53 +36,48 @@ const keys = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
 }
 
 (async () => {
-  const browser = await puppeteer.launch({ headless: 'new' });
+  console.log('🌐 Navigating to Wix page...');
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
+  });
+
   const page = await browser.newPage();
+  await page.goto(WIX_URL, { waitUntil: 'networkidle2', timeout: 60000 });
+
+  console.log('⏳ Waiting for fixture table to load...');
+  await page.waitForSelector('table'); // Simple selector for now
+
+  const data = await page.evaluate(() => {
+    const rows = Array.from(document.querySelectorAll('table tr'));
+    return rows.map(row => {
+      const cells = Array.from(row.querySelectorAll('td, th'));
+      return cells.map(cell => cell.innerText.trim());
+    });
+  });
+
+  await browser.close();
+
+  // ✅ Merge date + fixture rows & exclude 'League' footer
+  const mergedRows = [];
+  for (let i = 0; i < data.length; i += 2) {
+    const row1 = data[i];
+    const row2 = data[i + 1];
+
+    if (!row1 || !row2) continue;
+    if (row1[0] === 'League' || row2[0] === 'League') continue;
+
+    const date = row1[0];
+    const rest = row2.slice(0, 5);
+    mergedRows.push([date, ...rest]);
+  }
 
   try {
-    console.log('🌐 Navigating to Wix page...');
-    await page.goto(WIX_URL, { waitUntil: 'networkidle2' });
-
-    console.log('⏳ Waiting for fixture table to load...');
-    const iframeEl = await page.waitForSelector('iframe');
-    const frame = await iframeEl.contentFrame();
-    await frame.waitForSelector(SELECTOR, { timeout: 15000 });
-
-    const rawData = await frame.$$eval(SELECTOR + ' tr', rows =>
-      rows.map(row => Array.from(row.cells, cell => cell.innerText.trim()))
-    );
-
-    // ✅ Collapse rows and remove junk
-    const collapsedData = [];
-    for (let i = 0; i < rawData.length - 1; i++) {
-      const dateRow = rawData[i];
-      const fixtureRow = rawData[i + 1];
-
-      const date = dateRow[0]?.trim();
-      const isValid =
-        date &&
-        date.toLowerCase() !== 'league' &&
-        fixtureRow.length > 1 &&
-        fixtureRow[1]?.toLowerCase() !== 'league';
-
-      if (isValid) {
-        collapsedData.push([date, ...fixtureRow.slice(1)]);
-        i++; // Skip the next row (used already)
-      }
-    }
-
-    if (collapsedData.length === 0) {
-      throw new Error('⚠️ No valid fixture data found.');
-    }
-
     console.log('📤 Writing to Google Sheet...');
-    await writeToGoogleSheet(collapsedData);
-
-    console.log('✅ Fixtures written successfully!');
+    await writeToGoogleSheet(mergedRows);
+    console.log('✅ Successfully updated Google Sheet');
   } catch (err) {
     console.error('❌ Error during scraping or writing:', err.message);
-  } finally {
-    await browser.close();
-    process.exit(0); // ✅ Clean exit
   }
 })();
