@@ -6,7 +6,7 @@ const { google } = require('googleapis');
 // === CONFIG ===
 const SPREADSHEET_ID = '1OclBZZ8eNTFI-RWXU8zDTcEFymTHPkcxraLx-lmOnRQ';
 const SHEET_NAME = 'Fixtures';
-const TARGET_URL = 'https://westerncountiesfloodlightyouthleague.co.uk/premier';
+const TARGET_URL = 'https://philbrisjrs.wixsite.com/my-site-29128/ft-snippets';
 
 // ✅ Sheets writer function (inline)
 async function writeToGoogleSheet(values) {
