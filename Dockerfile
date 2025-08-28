@@ -24,14 +24,18 @@ RUN apt-get update && apt-get install -y \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
+# ✅ Prevent Puppeteer from trying to download Chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
 # Set working directory
 WORKDIR /app
 
-# Copy package files and install
+# Install Node dependencies
 COPY package*.json ./
 RUN npm install
 
-# Copy the rest of the app
+# Copy app code
 COPY . .
 
 # Start script
