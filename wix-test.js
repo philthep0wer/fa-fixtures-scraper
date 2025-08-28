@@ -20,7 +20,7 @@ const SHEET_NAME = 'WixTest';
     '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
   );
 
-  page.setDefaultNavigationTimeout(90000); // 90 seconds
+  page.setDefaultNavigationTimeout(90000);
 
   try {
     console.log('🌍 Navigating to Wix page...');
@@ -28,8 +28,24 @@ const SHEET_NAME = 'WixTest';
       waitUntil: 'domcontentloaded'
     });
 
-    console.log('⏳ Waiting for fixture table to load...');
-    await page.waitForFunction(() => {
+    console.log('⏳ Waiting for iframe...');
+    const iframeElementHandle = await page.waitForSelector('iframe', { timeout: 30000 });
+
+    const frame = await iframeElementHandle.contentFrame();
+
+    if (!frame) throw new Error('❌ Could not get iframe content');
+
+    // 📸 Take screenshot of full page before proceeding
+    console.log('📸 Taking screenshot of Wix page...');
+    const screenshotBuffer = await page.screenshot({ fullPage: true });
+const base64Image = screenshotBuffer.toString('base64');
+
+console.log('📸 Screenshot taken (base64):');
+console.log(`data:image/png;base64,${base64Image}`);
+
+
+    console.log('⏳ Waiting for fixture table in iframe...');
+    await frame.waitForFunction(() => {
       return [...document.querySelectorAll('table')].some(
         table =>
           table.innerText.includes('League') ||
@@ -37,8 +53,8 @@ const SHEET_NAME = 'WixTest';
       );
     }, { timeout: 60000 });
 
-    console.log('📋 Extracting table data...');
-    const values = await page.evaluate(() => {
+    console.log('📋 Extracting table data from iframe...');
+    const values = await frame.evaluate(() => {
       const table = document.querySelector('table');
       if (!table) return [];
 
@@ -59,7 +75,6 @@ const SHEET_NAME = 'WixTest';
   }
 })();
 
-// ✅ Inline Google Sheets writer
 async function writeToGoogleSheet(values) {
   const keyPath = path.resolve(__dirname, 'service-account.json');
   const keys = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
@@ -72,13 +87,11 @@ async function writeToGoogleSheet(values) {
   const client = await auth.getClient();
   const sheets = google.sheets({ version: 'v4', auth: client });
 
-  // Clear previous data
   await sheets.spreadsheets.values.clear({
     spreadsheetId: SPREADSHEET_ID,
     range: SHEET_NAME
   });
 
-  // Push new data
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
     range: SHEET_NAME,
