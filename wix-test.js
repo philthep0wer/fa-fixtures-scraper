@@ -1,36 +1,31 @@
-const puppeteer = require('puppeteer');
+import { Actor } from 'apify';
+import puppeteer from 'puppeteer';
 
-(async () => {
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-    ]
-  });
+Actor.main(async () => {
+    const browser = await puppeteer.launch({
+        headless: true,   // "true" is required for Apify cloud
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
 
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1280, height: 900 });
+    const page = await browser.newPage();
 
-  const url = 'https://philbrisjrs.wixsite.com/my-site-29128/ft-snippets';
-  console.log(`🌐 Navigating to ${url}...`);
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    const url = 'https://philbrisjrs.wixsite.com/my-site-29128/ft-snippets';
+    Actor.log.info(`🌐 Navigating to ${url}...`);
+    await page.goto(url, { waitUntil: 'networkidle2' });
 
-  // Wait for a known element (like the FT SNIPPETS heading)
-  await page.waitForSelector('h2', { timeout: 15000 });
-  console.log('✅ Page loaded, simulating interaction...');
+    // Screenshot before wait
+    const beforeScreenshot = await page.screenshot({ type: 'png', fullPage: true });
+    await Actor.setValue('BEFORE_WAIT', beforeScreenshot, { contentType: 'image/png' });
 
-  // Simulate user interaction to encourage lazy-loading
-  await page.mouse.move(200, 200);
-  await page.mouse.move(400, 400);
-  await page.mouse.wheel({ deltaY: 1000 });
+    // Wait for iframe to load (FT snippet is inside iframe)
+    Actor.log.info('🕰️ Waiting for iframe to load...');
+    await page.waitForSelector('iframe', { timeout: 30000 });
 
-  // Wait additional time to allow iframes/snippets to load
-  await page.waitForTimeout(30000); // 30 seconds
-  console.log('🕒 Finished waiting. Taking screenshot...');
+    // Screenshot after iframe appears
+    const afterScreenshot = await page.screenshot({ type: 'png', fullPage: true });
+    await Actor.setValue('AFTER_WAIT', afterScreenshot, { contentType: 'image/png' });
 
-  await page.screenshot({ path: 'rendered-page.png', fullPage: true });
-  console.log('📸 Screenshot saved as rendered-page.png');
+    Actor.log.info('✅ Done — screenshots saved to key-value store.');
 
-  await browser.close();
-})();
+    await browser.close();
+});
