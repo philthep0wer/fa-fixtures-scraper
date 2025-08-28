@@ -1,8 +1,8 @@
 {
   "fixtures": [
     {
-      "label": "Western League",
-      "url": "https://fulltime.thefa.com/fixtures/1/100.html?selectedSeason=645752852&selectedFixtureGroupAgeGroup=0&previousSelectedFixtureGroupAgeGroup=&selectedFixtureGroupKey=&previousSelectedFixtureGroupKey=&selectedDateCode=all&selectedRelatedFixtureOption=3&selectedClub=&previousSelectedClub=&selectedTeam=833747558&selectedFixtureDateStatus=&selectedFixtureStatus="
+      "label": "Western League Results",
+      "url": "https://fulltime.thefa.com/results/1/100.html?selectedSeason=454569247&selectedFixtureGroupAgeGroup=0&previousSelectedFixtureGroupAgeGroup=&selectedFixtureGroupKey=1_475860942&previousSelectedFixtureGroupKey=1_475860942&selectedDateCode=all&selectedRelatedFixtureOption=2&selectedClub=604010193&previousSelectedClub=604010193&selectedTeam="
     }
   ]
 }

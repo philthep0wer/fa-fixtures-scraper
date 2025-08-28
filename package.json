@@ -1,12 +1,12 @@
 {
   "name": "fa-fixtures-scraper",
   "version": "1.0.0",
-  "description": "Scrapes FA Full-Time fixtures using Puppeteer.",
-  "main": "start.js",
+  "main": "wix-test.js",
   "scripts": {
-    "start": "node start.js"
+    "start": "node wix-test.js"
   },
   "dependencies": {
-    "puppeteer": "^24.12.1"
+    "puppeteer": "^21.3.8",
+    "googleapis": "^132.0.0"
   }
 }

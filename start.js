@@ -1,64 +1,128 @@
-const puppeteer = require("puppeteer");
 const fs = require("fs");
 const path = require("path");
+const puppeteer = require("puppeteer-core");
+const { google } = require("googleapis");
 const config = require("./config.json");
+const { executablePath } = require("puppeteer");
 
-async function scrapeFixtures(label, url) {
-const browser = await puppeteer.launch({
-  headless: 'new', // Best for v24+
-  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
-  args: ['--no-sandbox', '--disable-setuid-sandbox']
+const auth = new google.auth.GoogleAuth({
+  keyFile: "ft-sheets-integration-d2872325146d.json",
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
+
+async function getSheetsClient() {
+  const authClient = await auth.getClient();
+  return google.sheets({ version: "v4", auth: authClient });
+}
+
+async function updateLeagueSheet(spreadsheetId, sheetName, rows) {
+  const sheets = await getSheetsClient();
+
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId,
+    range: `'${sheetName}'!A1:Z`,
+  });
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'${sheetName}'!A1`,
+    valueInputOption: "RAW",
+    resource: { values: rows },
+  });
+
+  console.log(`📊 Updated worksheet: ${sheetName}`);
+}
+
+async function updateLastUpdatedTimestamp(spreadsheetId, label) {
+  const sheets = await getSheetsClient();
+  const timestamp = new Date().toLocaleString("en-GB", { timeZone: "Europe/London" });
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `Summary!A1:B1`,
+    valueInputOption: "RAW",
+    resource: { values: [[label, timestamp]] },
+  });
+
+  console.log(`🕒 Timestamp updated for ${label}`);
+}
+
+async function scrapeLeague({ label, url }) {
+  console.log(`Scraping ${label}...`);
+  const browser = await puppeteer.launch({
+    headless: false,
+    executablePath: executablePath(),
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--user-data-dir=fulltime-session'
+    ]
+  });
 
   const page = await browser.newPage();
+  await page.setViewport({ width: 1280, height: 800 });
 
   try {
-    console.log(`Scraping ${label}...`);
+    await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
 
-    const outputDir = path.join(__dirname, "output");
-    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir);
+    const screenshotPath = path.join(__dirname, "output", `${label}_debug.png`);
+    await page.screenshot({ path: screenshotPath });
+    console.log(`📸 Screenshot saved to ${screenshotPath}`);
 
-    await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 });
+    console.log(`⏳ Waiting 30 seconds to allow manual Recaptcha solve...`);
+    await new Promise(resolve => setTimeout(resolve, 30000));
 
-// Optional wait fallback in case table takes time to render 
-await new Promise(resolve => setTimeout(resolve, 5000));
+    let rows = [];
 
-await page.screenshot({
-  path: path.join(__dirname, "output", `${label}_debug.png`),
-  fullPage: true
-});
+    if (label.toLowerCase().includes("results")) {
+      try {
+        await page.waitForSelector('div.results-table-2 div.tbody div[id^="fixture-"]', { timeout: 10000 });
+        rows = await page.$$eval('div.results-table-2 div.tbody div[id^="fixture-"]', allRows => {
+          return allRows.map(row => {
+            const cols = row.querySelectorAll('div');
+            return Array.from(cols).map(col => col.innerText.trim()).filter(Boolean);
+          });
+        });
+      } catch (err) {
+        console.warn(`⚠️ Table not found for ${label}, retrying after delay...`);
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        throw err;
+      }
+    } else {
+      try {
+        await page.waitForSelector(".tableWrapper table", { timeout: 10000 });
+        rows = await page.$$eval(".tableWrapper table tbody tr", trs => {
+          return trs.map(tr => Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim()));
+        });
+      } catch (err) {
+        console.warn(`⚠️ Table not found for ${label}, retrying after delay...`);
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        throw err;
+      }
+    }
 
+    if (!rows.length) throw new Error("No data extracted from table");
 
-    await page.waitForSelector("table", { timeout: 30000 });
+    const csvContent = rows.map(r => r.join(",")).join("\n");
+    const csvPath = path.join(__dirname, "output", `${label}_fixtures.csv`);
+    fs.writeFileSync(csvPath, csvContent);
+    console.log(`📄 Saved CSV to ${csvPath}`);
 
-    const rows = await page.$$eval("table tr", trs => trs.map(tr =>
-      Array.from(tr.querySelectorAll("td, th")).map(td => td.innerText.trim())
-    ));
-
-
-    const filePath = path.join(outputDir, `${label}_fixtures.csv`);
-    const csvContent = rows.map(row => row.join(",")).join("\n");
-
-    fs.writeFileSync(filePath, csvContent);
-
-    console.log(`Saved CSV to ${filePath}`);
+    const spreadsheetId = config.spreadsheetId;
+    await updateLeagueSheet(spreadsheetId, label, rows);
+    await updateLastUpdatedTimestamp(spreadsheetId, label);
   } catch (err) {
-    console.error(`Error scraping ${label}:`, err.message);
+    console.error(`❌ Error scraping ${label}:`, err.message);
   } finally {
     await browser.close();
   }
 }
 
 async function runAll() {
-  for (const fixture of config.fixtures) {
-    await scrapeFixtures(fixture.label, fixture.url);
+  for (const league of config.fixtures) {
+    await scrapeLeague(league);
   }
+  console.log("🏁 All scraping complete.");
 }
 
-runAll().then(() => {
-  console.log("✅ All scraping complete.");
-  process.exit(0);
-}).catch((err) => {
-  console.error("❌ Error during scraping:", err);
-  process.exit(1);
-});
+runAll();
