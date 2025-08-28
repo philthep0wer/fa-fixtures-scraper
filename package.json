@@ -6,7 +6,8 @@
     "start": "node wix-test.js"
   },
   "dependencies": {
-    "puppeteer": "^21.3.8",
-    "googleapis": "^132.0.0"
+    "apify": "^3.4.4",
+    "googleapis": "^132.0.0",
+    "puppeteer": "^21.3.8"
   }
 }
